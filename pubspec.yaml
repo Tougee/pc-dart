@@ -8,6 +8,9 @@ environment:
 dependencies:
   collection: ^1.15.0-nullsafety.4
 
+dependencies:
+  ed25519_edwards: "0.0.2"
+
 dev_dependencies:
   benchmark_harness:  ^2.0.0-nullsafety
   matcher: ^0.12.10-nullsafety

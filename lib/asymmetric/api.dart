@@ -4,7 +4,30 @@ library api.asymmetric;
 
 import 'dart:typed_data';
 
+import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:pointycastle/api.dart';
+
+abstract class EdDSAAsymmetricKey implements AsymmetricKey {
+
+}
+
+class EdDSAPrivateKey extends EdDSAAsymmetricKey implements PrivateKey {
+  final ed.PrivateKey private;
+
+  EdDSAPrivateKey(this.private);
+}
+
+class EdDSAPublicKey extends EdDSAAsymmetricKey implements PublicKey {
+  final ed.PublicKey publicKey;
+
+  EdDSAPublicKey(this.publicKey);
+}
+
+class EdDSASignature implements Signature {
+  final Uint8List bytes;
+
+  EdDSASignature(this.bytes);
+}
 
 /// Base class for asymmetric keys in RSA
 abstract class RSAAsymmetricKey implements AsymmetricKey {
