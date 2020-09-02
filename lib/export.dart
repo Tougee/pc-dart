@@ -84,6 +84,7 @@ export 'package:pointycastle/random/fortuna_random.dart';
 export 'package:pointycastle/signers/ecdsa_signer.dart';
 export 'package:pointycastle/signers/rsa_signer.dart';
 export 'package:pointycastle/signers/pss_signer.dart';
+export 'package:pointycastle/signers/eddsa_signer.dart';
 
 // stream
 export 'package:pointycastle/stream/ctr.dart';
