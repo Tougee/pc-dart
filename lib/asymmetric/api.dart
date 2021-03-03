@@ -7,16 +7,17 @@ import 'dart:typed_data';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:pointycastle/api.dart';
 
-abstract class EdDSAAsymmetricKey implements AsymmetricKey {
+/// Base class for asymmetric keys in EdDSA
+abstract class EdDSAAsymmetricKey implements AsymmetricKey {}
 
-}
-
+/// Private keys in EdDSA
 class EdDSAPrivateKey extends EdDSAAsymmetricKey implements PrivateKey {
   final ed.PrivateKey private;
 
   EdDSAPrivateKey(this.private);
 }
 
+/// Public keys in EdDSA
 class EdDSAPublicKey extends EdDSAAsymmetricKey implements PublicKey {
   final ed.PublicKey publicKey;
 

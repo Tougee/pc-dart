@@ -14,8 +14,8 @@ class EdDSASigner implements Signer {
   });
 
 
-  bool _forSigning;
-  EdDSAAsymmetricKey _key;
+  late bool _forSigning;
+  EdDSAAsymmetricKey? _key;
 
   @override
   String get algorithmName => 'EdDSA';

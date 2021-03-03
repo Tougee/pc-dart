@@ -55,8 +55,8 @@ void main() {
 
   test('testSignVerify', () {
     var keyPair = ed.generateKey();
-    var pubk = EdDSAPublicKey(keyPair.publicKey);
-    var privk = EdDSAPrivateKey(keyPair.privateKey);
+    var pubk = EdDSAPublicKey(keyPair.publicKey!);
+    var privk = EdDSAPrivateKey(keyPair.privateKey!);
     var bytesToSign = Uint8List.fromList(utf8.encode('test message'));
 
     final signature = edDSASign(privk, bytesToSign);
