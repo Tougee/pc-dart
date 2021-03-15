@@ -1,14 +1,16 @@
 import 'dart:typed_data';
 
+import 'package:pointycastle/asn1/asn1_encoding_rule.dart';
 import 'package:pointycastle/asn1/asn1_object.dart';
 import 'package:pointycastle/asn1/asn1_tags.dart';
+import 'package:pointycastle/asn1/unsupported_asn1_encoding_rule_exception.dart';
 import 'package:pointycastle/src/utils.dart';
 
 class ASN1Integer extends ASN1Object {
   ///
   /// The integer value
   ///
-  BigInt integer;
+  BigInt? integer;
 
   ///
   /// Create an [ASN1Integer] entity with the given BigInt [integer].
@@ -27,13 +29,45 @@ class ASN1Integer extends ASN1Object {
   ///
   ASN1Integer.fromBytes(Uint8List encodedBytes)
       : super.fromBytes(encodedBytes) {
-    integer = decodeBigInt(valueBytes);
+    integer = decodeBigInt(valueBytes!);
+  }
+
+  ///
+  /// Encodes this ASN1Object depending on the given [encodingRule]
+  ///
+  /// If no [ASN1EncodingRule] is given, ENCODING_DER will be used.
+  ///
+  /// Supported encoding rules are :
+  /// * [ASN1EncodingRule.ENCODING_DER]
+  ///
+  /// Throws an [UnsupportedAsn1EncodingRuleException] if the given [encodingRule] is not supported.
+  ///
+  @override
+  Uint8List encode(
+      {ASN1EncodingRule encodingRule = ASN1EncodingRule.ENCODING_DER}) {
+    if (encodingRule != ASN1EncodingRule.ENCODING_DER) {
+      throw UnsupportedAsn1EncodingRuleException(encodingRule);
+    }
+    if (integer!.bitLength == 0) {
+      if (integer == BigInt.from(-1)) {
+        valueBytes = Uint8List.fromList([0xff]);
+      } else {
+        valueBytes = Uint8List.fromList([0]);
+      }
+    } else {
+      valueBytes = encodeBigInt(integer);
+    }
+    valueByteLength = valueBytes!.length;
+    return super.encode();
   }
 
   @override
-  Uint8List encode() {
-    valueBytes = encodeBigInt(integer);
-    valueByteLength = valueBytes.length;
-    return super.encode();
+  String dump({int spaces = 0}) {
+    var sb = StringBuffer();
+    for (var i = 0; i < spaces; i++) {
+      sb.write(' ');
+    }
+    sb.write('INTEGER ${integer.toString().toUpperCase()}');
+    return sb.toString();
   }
 }

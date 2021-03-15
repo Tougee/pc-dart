@@ -2,6 +2,7 @@
 
 library test.asymmetric.rsa_test;
 
+import 'package:test/test.dart';
 import 'package:pointycastle/pointycastle.dart';
 
 import '../test/asymmetric_block_cipher_tests.dart';
@@ -22,6 +23,23 @@ void main() {
 
   var pubk = RSAPublicKey(modulus, publicExponent);
   var privk = RSAPrivateKey(modulus, privateExponent, p, q);
+
+  test('RSA public exponent in private key', () {
+    // RSAPrivateKey constructor will calculate the correct public exponent.
+    // The `publicExponent` getter will retrieve that correct value.
+    expect(privk.publicExponent, equals(publicExponent));
+
+    // Wrong public exponent provided to the constructor raises an exception.
+    // ignore: deprecated_member_use_from_same_package
+    expect(
+        () => RSAPrivateKey(modulus, privateExponent, p, q, BigInt.zero),
+        throwsA(predicate((dynamic e) =>
+            e is ArgumentError &&
+            e.message ==
+                'public exponent inconsistent with RSA private exponent, p and q')));
+  });
+
+  // Test using the RSA key pair to perform block cipher encryption/decryption.
 
   var pubpar = () => PublicKeyParameter<RSAPublicKey>(pubk);
   var privpar = () => PrivateKeyParameter<RSAPrivateKey>(privk);

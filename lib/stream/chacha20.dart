@@ -16,14 +16,13 @@ import '../src/ufixnum.dart';
 
 /// Implementation of Daniel J. Bernstein's ChaCha20 stream cipher, Snuffle 2005.
 class ChaCha20Engine extends BaseStreamCipher {
-  // ignore: non_constant_identifier_names
-  static final FactoryConfig FACTORY_CONFIG = DynamicFactoryConfig.prefix(
+  static final FactoryConfig factoryConfig = DynamicFactoryConfig.prefix(
       StreamCipher,
       'ChaCha20/',
-          (_, final Match match) => () {
-        var rounds = int.parse(match.group(1));
-        return ChaCha20Engine.fromRounds(rounds);
-      });
+      (_, final Match match) => () {
+            var rounds = int.parse(match.group(1)!);
+            return ChaCha20Engine.fromRounds(rounds);
+          });
 
   static const STATE_SIZE = 16;
 
@@ -66,11 +65,11 @@ class ChaCha20Engine extends BaseStreamCipher {
     107
   ]);
 
-  Uint8List _workingKey;
-  Uint8List _workingIV;
+  Uint8List? _workingKey;
+  late Uint8List _workingIV;
 
-  final _state = List<int>(STATE_SIZE);
-  final _buffer = List<int>(STATE_SIZE);
+  final _state = List<int>.filled(STATE_SIZE, 0, growable: false);
+  final _buffer = List<int>.filled(STATE_SIZE, 0, growable: false);
 
   final _keyStream = Uint8List(STATE_SIZE * 4);
   var _keyStreamOffset = 0;
@@ -78,36 +77,34 @@ class ChaCha20Engine extends BaseStreamCipher {
   var _initialised = false;
 
   @override
-  String get algorithmName => 'ChaCha20/${rounds}';
+  String get algorithmName => 'ChaCha20/$rounds';
 
   ChaCha20Engine() {
-    this.rounds = 20;
+    rounds = 20;
   }
 
-  ChaCha20Engine.fromRounds(int rounds) {
-    this.rounds = rounds;
-  }
+  ChaCha20Engine.fromRounds(this.rounds);
 
   @override
   void reset() {
     if (_workingKey != null) {
-      _setKey(_workingKey, _workingIV);
+      _setKey(_workingKey!, _workingIV);
     }
   }
 
   @override
-  void init(bool forEncryption,
-      covariant ParametersWithIV<KeyParameter> params) {
+  void init(
+      bool forEncryption, covariant ParametersWithIV<KeyParameter> params) {
     var uparams = params.parameters;
     var iv = params.iv;
-    if (iv == null || iv.length != 8) {
+    if (iv.length != 8) {
       throw ArgumentError('ChaCha20 requires exactly 8 bytes of IV');
     }
 
     _workingIV = iv;
-    _workingKey = uparams.key;
+    _workingKey = uparams!.key;
 
-    _setKey(_workingKey, _workingIV);
+    _setKey(_workingKey!, _workingIV);
   }
 
   @override
@@ -127,8 +124,8 @@ class ChaCha20Engine extends BaseStreamCipher {
   }
 
   @override
-  void processBytes(Uint8List inp, int inpOff, int len, Uint8List out,
-      int outOff) {
+  void processBytes(
+      Uint8List inp, int inpOff, int len, Uint8List out, int outOff) {
     if (!_initialised) {
       throw StateError('ChaCha20 not initialized: please call init() first');
     }
@@ -171,7 +168,7 @@ class ChaCha20Engine extends BaseStreamCipher {
     _state[6] = unpack32(_workingKey, 8, Endian.little);
     _state[7] = unpack32(_workingKey, 12, Endian.little);
 
-    if (_workingKey.length == 32) {
+    if (_workingKey!.length == 32) {
       constants = _sigma;
       offset = 16;
     } else {
@@ -196,7 +193,7 @@ class ChaCha20Engine extends BaseStreamCipher {
   }
 
   void generateKeyStream(Uint8List output) {
-    _core(this.rounds, _state, _buffer);
+    _core(rounds, _state, _buffer);
     var outOff = 0;
     for (var x in _buffer) {
       pack32(x, output, outOff, Endian.little);
@@ -313,5 +310,5 @@ class ChaCha20Engine extends BaseStreamCipher {
   }
 
   @override
-  external dynamic noSuchMethod(Invocation invocation);
+  dynamic noSuchMethod(Invocation invocation);
 }

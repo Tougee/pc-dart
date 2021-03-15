@@ -2,7 +2,6 @@
 
 library impl.digest.keccak;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:pointycastle/api.dart';
@@ -18,7 +17,7 @@ class KeccakDigest extends KeccakEngine {
       Digest,
       _keccakREGEX,
       (_, final Match match) => () {
-            var bitLength = int.parse(match.group(1));
+            var bitLength = int.parse(match.group(1)!);
             return KeccakDigest(bitLength);
           });
 

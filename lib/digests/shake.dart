@@ -1,3 +1,5 @@
+// This file has been migrated.
+
 library impl.digest.shake;
 
 import 'dart:typed_data';
@@ -19,7 +21,7 @@ class SHAKEDigest extends KeccakEngine implements Xof {
       Digest,
       _shakeREGEX,
       (_, final Match match) => () {
-            var bitLength = int.parse(match.group(1));
+            var bitLength = int.parse(match.group(1)!);
             return SHAKEDigest(bitLength);
           });
 
@@ -56,9 +58,9 @@ class SHAKEDigest extends KeccakEngine implements Xof {
       throw ArgumentError('partialBits must be in the range [0,7]');
     }
 
-    int finalInput =
+    var finalInput =
         (partialByte & ((1 << partialBits) - 1)) | (0x0F << partialBits);
-    int finalBits = partialBits + 4;
+    var finalBits = partialBits + 4;
 
     if (finalBits >= 8) {
       absorb(finalInput);

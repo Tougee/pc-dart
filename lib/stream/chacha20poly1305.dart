@@ -5,20 +5,19 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/src/registry/registry.dart';
 import 'package:pointycastle/stream/chacha7539.dart';
-
+import '../api.dart';
 import '../export.dart';
 import '../src/impl/base_aead_cipher.dart';
 import '../src/ufixnum.dart';
 
-import '../api.dart';
 import '../src/utils.dart' as utils;
 
 // ignore_for_file: non_constant_identifier_names
 
 class ChaCha20Poly1305 extends BaseAEADCipher {
-  static final FactoryConfig FACTORY_CONFIG = StaticFactoryConfig(
+  static final FactoryConfig factoryConfig = StaticFactoryConfig(
       AEADCipher,
-      "ChaCha20-Poly1305",
+      'ChaCha20-Poly1305',
       () => ChaCha20Poly1305(ChaCha7539Engine(), Poly1305()));
   static const BUF_SIZE = 64;
   static const KEY_SIZE = 32;
@@ -44,25 +43,18 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
   @override
   Uint8List get mac => _mac;
 
-  Uint8List _initialAAD;
-  int _aadCount;
-  int _dataCount;
+  Uint8List? _initialAAD;
+  late int _aadCount;
+  late int _dataCount;
   int _state = State.UNINITIALIZED;
-  int _bufPos;
+  late int _bufPos;
 
-  ChaCha20Poly1305(this.chacha20, this.poly1305) {
-    if (null == poly1305) {
-      throw ArgumentError("'poly1305' cannot be null");
-    }
-    if (MAC_SIZE != poly1305.macSize) {
-      throw ArgumentError("'poly1305' must be a 128-bit MAC");
-    }
-  }
+  ChaCha20Poly1305(this.chacha20, this.poly1305);
 
   @override
   void init(bool forEncryption, CipherParameters params) {
     KeyParameter initKeyParam;
-    Uint8List initNonce;
+    Uint8List? initNonce;
     CipherParameters chacha20Params;
 
     if (params is AEADParameters) {
@@ -92,34 +84,16 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
     }
 
     // Validate key
-    if (null == initKeyParam) {
-      if (State.UNINITIALIZED == _state) {
-        throw ArgumentError('Key must be specified in initial init');
-      }
-    } else {
-      if (KEY_SIZE != initKeyParam.key.length) {
-        throw ArgumentError('Key must be 256 bits');
-      }
+    if (KEY_SIZE != initKeyParam.key.length) {
+      throw ArgumentError('Key must be 256 bits');
     }
 
     // Validate nonce
-    if (null == initNonce || NONCE_SIZE != initNonce.length) {
+    if (NONCE_SIZE != initNonce.length) {
       throw ArgumentError('Nonce must be 96 bits');
     }
 
-    // Check for encryption with reused nonce
-    if (State.UNINITIALIZED != _state &&
-        forEncryption &&
-        (_nonce == initNonce)) {
-      if (null == initKeyParam || (_key == initKeyParam.key)) {
-        throw ArgumentError(
-            'cannot reuse nonce for ChaCha20Poly1305 encryption');
-      }
-    }
-
-    if (null != initKeyParam) {
-      utils.arrayCopy(initKeyParam.key, 0, _key, 0, KEY_SIZE);
-    }
+    utils.arrayCopy(initKeyParam.key, 0, _key, 0, KEY_SIZE);
 
     utils.arrayCopy(initNonce, 0, _nonce, 0, NONCE_SIZE);
 
@@ -180,14 +154,11 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
 
   @override
   void processAADBytes(Uint8List inp, int inOff, int len) {
-    if (null == inp) {
-      throw ArgumentError("'in' cannot be null");
-    }
     if (inOff < 0) {
-      throw ArgumentError("'inOff' cannot be negative");
+      throw ArgumentError('\'inOff\' cannot be negative');
     }
     if (len < 0) {
-      throw ArgumentError("'len' cannot be negative");
+      throw ArgumentError('\'len\' cannot be negative');
     }
     if (inOff > (inp.length - len)) {
       throw ArgumentError('Input buffer too short');
@@ -239,20 +210,17 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
   @override
   int processBytes(
       Uint8List inp, int inOff, int len, Uint8List out, int outOff) {
-    if (null == inp) {
-      throw ArgumentError("'in' cannot be null");
-    }
     if (inOff < 0) {
-      throw ArgumentError("'inOff' cannot be negative");
+      throw ArgumentError('\'inOff\' cannot be negative');
     }
     if (len < 0) {
-      throw ArgumentError("'len' cannot be negative");
+      throw ArgumentError('\'len\' cannot be negative');
     }
     if (inOff > (inp.length - len)) {
       throw ArgumentError('Input buffer too short');
     }
     if (outOff < 0) {
-      throw ArgumentError("'outOff' cannot be negative");
+      throw ArgumentError('\'outOff\' cannot be negative');
     }
 
     checkData();
@@ -313,11 +281,8 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
 
   @override
   int doFinal(Uint8List out, int outOff) {
-    if (null == out) {
-      throw ArgumentError("'out' cannot be null");
-    }
     if (outOff < 0) {
-      throw ArgumentError("'outOff' cannot be negative");
+      throw ArgumentError('\'outOff\' cannot be negative');
     }
 
     checkData();
@@ -427,8 +392,8 @@ class ChaCha20Poly1305 extends BaseAEADCipher {
 
     initMAC();
 
-    if (null != _initialAAD) {
-      processAADBytes(_initialAAD, 0, _initialAAD.length);
+    if (_initialAAD != null) {
+      processAADBytes(_initialAAD!, 0, _initialAAD!.length);
     }
   }
 

@@ -2,33 +2,35 @@
 
 library impl.asymmetric_block_cipher.rsa;
 
-import "dart:typed_data";
+import 'dart:typed_data';
 
-import "package:pointycastle/api.dart";
-import "package:pointycastle/asymmetric/api.dart";
-import "package:pointycastle/src/impl/base_asymmetric_block_cipher.dart";
-import "package:pointycastle/src/registry/registry.dart";
-import "package:pointycastle/src/utils.dart" as utils;
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/src/impl/base_asymmetric_block_cipher.dart';
+import 'package:pointycastle/src/registry/registry.dart';
+import 'package:pointycastle/src/utils.dart' as utils;
 
 class RSAEngine extends BaseAsymmetricBlockCipher {
-  static final FactoryConfig FACTORY_CONFIG =
-      new StaticFactoryConfig(AsymmetricBlockCipher, "RSA", () => RSAEngine());
+  static final FactoryConfig factoryConfig =
+      StaticFactoryConfig(AsymmetricBlockCipher, 'RSA', () => RSAEngine());
 
-  bool _forEncryption;
-  RSAAsymmetricKey _key;
-  BigInt _dP;
-  BigInt _dQ;
-  BigInt _qInv;
+  late bool _forEncryption;
+  RSAAsymmetricKey? _key;
+  late BigInt _dP;
+  late BigInt _dQ;
+  late BigInt _qInv;
 
-  String get algorithmName => "RSA";
+  @override
+  String get algorithmName => 'RSA';
 
+  @override
   int get inputBlockSize {
     if (_key == null) {
-      throw new StateError(
-          "Input block size cannot be calculated until init() called");
+      throw StateError(
+          'Input block size cannot be calculated until init() called');
     }
 
-    var bitSize = _key.modulus.bitLength;
+    var bitSize = _key!.modulus!.bitLength;
     if (_forEncryption) {
       return ((bitSize + 7) ~/ 8) - 1;
     } else {
@@ -36,13 +38,14 @@ class RSAEngine extends BaseAsymmetricBlockCipher {
     }
   }
 
+  @override
   int get outputBlockSize {
     if (_key == null) {
-      throw new StateError(
-          "Output block size cannot be calculated until init() called");
+      throw StateError(
+          'Output block size cannot be calculated until init() called');
     }
 
-    var bitSize = _key.modulus.bitLength;
+    var bitSize = _key!.modulus!.bitLength;
     if (_forEncryption) {
       return (bitSize + 7) ~/ 8;
     } else {
@@ -50,8 +53,10 @@ class RSAEngine extends BaseAsymmetricBlockCipher {
     }
   }
 
+  @override
   void reset() {}
 
+  @override
   void init(bool forEncryption,
       covariant AsymmetricKeyParameter<RSAAsymmetricKey> params) {
     _forEncryption = forEncryption;
@@ -59,11 +64,11 @@ class RSAEngine extends BaseAsymmetricBlockCipher {
 
     if (_key is RSAPrivateKey) {
       var privKey = (_key as RSAPrivateKey);
-      var pSub1 = (privKey.p - BigInt.one);
-      var qSub1 = (privKey.q - BigInt.one);
-      _dP = privKey.d.remainder(pSub1);
-      _dQ = privKey.d.remainder(qSub1);
-      _qInv = privKey.q.modInverse(privKey.p);
+      var pSub1 = (privKey.p! - BigInt.one);
+      var qSub1 = (privKey.q! - BigInt.one);
+      _dP = privKey.privateExponent!.remainder(pSub1);
+      _dQ = privKey.privateExponent!.remainder(qSub1);
+      _qInv = privKey.q!.modInverse(privKey.p!);
     }
   }
 
@@ -88,18 +93,18 @@ class RSAEngine extends BaseAsymmetricBlockCipher {
     var inpLen = inp.length;
 
     if (inpLen < inpOff + len) {
-      throw new ArgumentError.value(inpOff, "inpOff",
-          "Not enough data for RSA cipher (length=$len, available=$inpLen)");
+      throw ArgumentError.value(inpOff, 'inpOff',
+          'Not enough data for RSA cipher (length=$len, available=$inpLen)');
     }
 
     if (inputBlockSize + 1 < len) {
-      throw new ArgumentError.value(len, "len",
-          "Too large for maximum RSA cipher input block size ($inputBlockSize)");
+      throw ArgumentError.value(len, 'len',
+          'Too large for maximum RSA cipher input block size ($inputBlockSize)');
     }
 
-    var res = utils.decodeBigInt(inp.sublist(inpOff, inpOff + len));
-    if (res >= _key.modulus) {
-      throw new ArgumentError("Input block too large for RSA key size");
+    var res = utils.decodeBigIntWithSign(1, inp.sublist(inpOff, inpOff + len));
+    if (res >= _key!.modulus!) {
+      throw ArgumentError('Input block too large for RSA key size');
     }
 
     return res;
@@ -139,20 +144,20 @@ class RSAEngine extends BaseAsymmetricBlockCipher {
       var privKey = (_key as RSAPrivateKey);
       BigInt mP, mQ, h, m;
 
-      mP = (input.remainder(privKey.p)).modPow(_dP, privKey.p);
+      mP = (input.remainder(privKey.p!)).modPow(_dP, privKey.p!);
 
-      mQ = (input.remainder(privKey.q)).modPow(_dQ, privKey.q);
+      mQ = (input.remainder(privKey.q!)).modPow(_dQ, privKey.q!);
 
       h = mP - mQ;
       h = h * _qInv;
-      h = h % privKey.p;
+      h = h % privKey.p!;
 
-      m = h * privKey.q;
+      m = h * privKey.q!;
       m = m + mQ;
 
       return m;
     } else {
-      return input.modPow(_key.exponent, _key.modulus);
+      return input.modPow(_key!.exponent!, _key!.modulus!);
     }
   }
 }

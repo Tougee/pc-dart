@@ -1,18 +1,27 @@
 import 'dart:typed_data';
 
+import 'package:pointycastle/asn1/asn1_encoding_rule.dart';
 import 'package:pointycastle/asn1/asn1_object.dart';
 import 'package:pointycastle/asn1/asn1_tags.dart';
+import 'package:pointycastle/asn1/object_identifiers.dart';
+import 'package:pointycastle/asn1/unsupported_asn1_encoding_rule_exception.dart';
+import 'package:pointycastle/asn1/unsupported_object_identifier_exception.dart';
 
 class ASN1ObjectIdentifier extends ASN1Object {
   ///
   /// The object identifier integer values
   ///
-  List<int> objectIdentifier;
+  List<int>? objectIdentifier;
 
   ///
   /// The String representation of the [objectIdentifier]
   ///
-  String objectIdentifierAsString;
+  String? objectIdentifierAsString;
+
+  ///
+  /// The readable representation of the [objectIdentifier]
+  ///
+  String? readableName;
 
   ///
   /// Create an [ASN1ObjectIdentifier] entity with the given [objectIdentifier].
@@ -20,7 +29,7 @@ class ASN1ObjectIdentifier extends ASN1Object {
   ASN1ObjectIdentifier(this.objectIdentifier,
       {int tag = ASN1Tags.OBJECT_IDENTIFIER})
       : super(tag: tag) {
-    objectIdentifierAsString = objectIdentifier.join('.');
+    objectIdentifierAsString = objectIdentifier!.join('.');
   }
 
   ///
@@ -30,10 +39,10 @@ class ASN1ObjectIdentifier extends ASN1Object {
       : super.fromBytes(encodedBytes) {
     var value = 0;
     var first = true;
-    BigInt bigValue;
+    BigInt? bigValue;
     var list = <int>[];
     var sb = StringBuffer();
-    valueBytes.forEach((element) {
+    valueBytes!.forEach((element) {
       var b = element & 0xff;
       if (value < 0x80000000000000) {
         value = value * 128 + (b & 0x7f);
@@ -57,8 +66,8 @@ class ASN1ObjectIdentifier extends ASN1Object {
         }
       } else {
         bigValue ??= BigInt.from(value);
-        bigValue = bigValue << (7);
-        bigValue = bigValue | BigInt.from(b & 0x7f);
+        bigValue = bigValue! << (7);
+        bigValue = bigValue! | BigInt.from(b & 0x7f);
         if ((b & 0x80) == 0) {
           sb.write('.$bigValue');
           bigValue = null;
@@ -68,44 +77,79 @@ class ASN1ObjectIdentifier extends ASN1Object {
     });
     objectIdentifierAsString = sb.toString();
     objectIdentifier = Uint8List.fromList(list);
+    var identifier =
+        ObjectIdentifiers.getIdentifierByIdentifier(objectIdentifierAsString);
+    if (identifier != null) {
+      readableName = identifier['readableName'] as String?;
+    }
   }
 
   ///
   /// Creates an [ASN1ObjectIdentifier] entity from the given [name].
   ///
-  /// Example for [name]:
+  /// Example:
   /// ```
-  /// var name = 'ecdsaWithSHA256'
+  /// var oi = ASN1ObjectIdentifier.fromName('ecdsaWithSHA256');
   /// ```
+  ///
+  /// Throws an [UnsupportedObjectIdentifierException] if the given [name] is not supported
   ///
   ASN1ObjectIdentifier.fromName(String name) {
-    // TODO Implement named constructor fromName()
-    throw UnimplementedError();
+    tag = ASN1Tags.OBJECT_IDENTIFIER;
+    var identifier = ObjectIdentifiers.getIdentifierByName(name);
+    if (identifier == null) {
+      throw UnsupportedObjectIdentifierException(name);
+    }
+    objectIdentifierAsString = identifier['identifierString'] as String?;
+    readableName = identifier['readableName'] as String?;
+    objectIdentifier = identifier['identifier'] as List<int>?;
   }
 
   ///
-  /// Creates an [ASN1ObjectIdentifier] entity from the given [componentString].
+  /// Creates an [ASN1ObjectIdentifier] entity from the given [objectIdentifierAsString].
   ///
-  /// Example for [componentString]:
+  /// Example:
   /// ```
-  /// var componentString = '2.5.4.3'
+  /// var oi = ASN1ObjectIdentifier.fromName('2.5.4.3');
   /// ```
   ///
-  ASN1ObjectIdentifier.fromComponentString(this.objectIdentifierAsString,
+  /// Throws an [UnsupportedObjectIdentifierException] if the given [objectIdentifierAsString] is not supported
+  ///
+  ASN1ObjectIdentifier.fromIdentifierString(this.objectIdentifierAsString,
       {int tag = ASN1Tags.OBJECT_IDENTIFIER})
       : super(tag: tag) {
-    var list = objectIdentifierAsString.split('.').map(int.parse).toList();
-    objectIdentifier = Uint8List.fromList(list);
+    var identifier =
+        ObjectIdentifiers.getIdentifierByIdentifier(objectIdentifierAsString);
+    if (identifier == null) {
+      throw UnsupportedObjectIdentifierException(objectIdentifierAsString);
+    }
+    objectIdentifierAsString = identifier['identifierString'] as String?;
+    readableName = identifier['readableName'] as String?;
+    objectIdentifier = identifier['identifier'] as List<int>?;
   }
 
+  ///
+  /// Encodes this ASN1Object depending on the given [encodingRule]
+  ///
+  /// If no [ASN1EncodingRule] is given, ENCODING_DER will be used.
+  ///
+  /// Supported encoding rules are :
+  /// * [ASN1EncodingRule.ENCODING_DER]
+  ///
+  /// Throws an [UnsupportedAsn1EncodingRuleException] if the given [encodingRule] is not supported.
+  ///
   @override
-  Uint8List encode() {
+  Uint8List encode(
+      {ASN1EncodingRule encodingRule = ASN1EncodingRule.ENCODING_DER}) {
+    if (encodingRule != ASN1EncodingRule.ENCODING_DER) {
+      throw UnsupportedAsn1EncodingRuleException(encodingRule);
+    }
     var oi = <int>[];
-    oi.add(objectIdentifier[0] * 40 + objectIdentifier[1]);
+    oi.add(objectIdentifier![0] * 40 + objectIdentifier![1]);
 
-    for (var ci = 2; ci < objectIdentifier.length; ci++) {
+    for (var ci = 2; ci < objectIdentifier!.length; ci++) {
       var position = oi.length;
-      var v = objectIdentifier[ci];
+      var v = objectIdentifier![ci];
       assert(v > 0);
 
       var first = true;
@@ -126,5 +170,15 @@ class ASN1ObjectIdentifier extends ASN1Object {
     valueByteLength = oi.length;
 
     return super.encode();
+  }
+
+  @override
+  String dump({int spaces = 0}) {
+    var sb = StringBuffer();
+    for (var i = 0; i < spaces; i++) {
+      sb.write(' ');
+    }
+    sb.write('OBJECT IDENTIFIER $objectIdentifierAsString $readableName');
+    return sb.toString();
   }
 }

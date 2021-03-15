@@ -1,3 +1,5 @@
+// This file has been migrated.
+
 library impl.digest.cshake;
 
 import 'dart:typed_data';
@@ -21,14 +23,14 @@ class CSHAKEDigest extends SHAKEDigest implements Xof {
       Digest,
       _cshakeREGEX,
       (_, final Match match) => () {
-            var bitLength = int.parse(match.group(1));
+            var bitLength = int.parse(match.group(1)!);
             return CSHAKEDigest(bitLength);
           });
 
-  Uint8List _diff;
+  Uint8List? _diff;
   final _padding = Uint8List(100);
 
-  CSHAKEDigest([int bitLength = 256, Uint8List N = null, Uint8List S = null]) {
+  CSHAKEDigest([int bitLength = 256, Uint8List? N, Uint8List? S]) {
     switch (bitLength) {
       case 128:
       case 256:
@@ -53,7 +55,7 @@ class CSHAKEDigest extends SHAKEDigest implements Xof {
 
   @override
   String get algorithmName => 'CSHAKE-$fixedOutputLength';
-
+  @override
   int doOutput(Uint8List out, int outOff, int outLen) {
     if (_diff != null) {
       if (!squeezing) {
@@ -68,10 +70,12 @@ class CSHAKEDigest extends SHAKEDigest implements Xof {
     }
   }
 
+  @override
   void update(Uint8List inp, int inpOff, int len) {
     absorbRange(inp, inpOff, len);
   }
 
+  @override
   void reset() {
     super.reset();
 
@@ -82,14 +86,14 @@ class CSHAKEDigest extends SHAKEDigest implements Xof {
 
   // bytepad in SP 800-185
   void _diffPadAndAbsorb() {
-    int blockSize = rate ~/ 8;
-    absorbRange(_diff, 0, _diff.length);
+    var blockSize = rate ~/ 8;
+    absorbRange(_diff!, 0, _diff!.length);
 
-    int delta = _diff.length % blockSize;
+    var delta = _diff!.length % blockSize;
 
     // only add padding if needed
     if (delta != 0) {
-      int required = blockSize - delta;
+      var required = blockSize - delta;
 
       while (required > _padding.length) {
         absorbRange(_padding, 0, _padding.length);
@@ -100,8 +104,8 @@ class CSHAKEDigest extends SHAKEDigest implements Xof {
     }
   }
 
-  Uint8List _encodeString(Uint8List str) {
-    if (str == null || str.length == 0) {
+  Uint8List _encodeString(Uint8List? str) {
+    if (str == null || str.isEmpty) {
       return XofUtils.leftEncode(0);
     }
 

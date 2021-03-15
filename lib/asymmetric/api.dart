@@ -2,43 +2,112 @@
 
 library api.asymmetric;
 
-import "dart:typed_data";
+import 'dart:typed_data';
 
-import "package:pointycastle/api.dart";
+import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
+import 'package:pointycastle/api.dart';
+
+/// Base class for asymmetric keys in EdDSA
+abstract class EdDSAAsymmetricKey implements AsymmetricKey {}
+
+/// Private keys in EdDSA
+class EdDSAPrivateKey extends EdDSAAsymmetricKey implements PrivateKey {
+  final ed.PrivateKey private;
+
+  EdDSAPrivateKey(this.private);
+}
+
+/// Public keys in EdDSA
+class EdDSAPublicKey extends EdDSAAsymmetricKey implements PublicKey {
+  final ed.PublicKey publicKey;
+
+  EdDSAPublicKey(this.publicKey);
+}
+
+class EdDSASignature implements Signature {
+  final Uint8List bytes;
+
+  EdDSASignature(this.bytes);
+}
 
 /// Base class for asymmetric keys in RSA
 abstract class RSAAsymmetricKey implements AsymmetricKey {
   // The parameters of this key
-  final BigInt modulus;
-  final BigInt exponent;
+  final BigInt? modulus;
+  final BigInt? exponent;
 
   /// Create an asymmetric key for the given domain parameters
   RSAAsymmetricKey(this.modulus, this.exponent);
 
   /// Get modulus [n] = p·q
-  BigInt get n => modulus;
+  BigInt? get n => modulus;
 }
 
 /// Private keys in RSA
 class RSAPrivateKey extends RSAAsymmetricKey implements PrivateKey {
   // The secret prime factors of n
-  final BigInt p;
-  final BigInt q;
+  final BigInt? p;
+  final BigInt? q;
+  BigInt? _pubExp;
 
   /// Create an RSA private key for the given parameters.
-  RSAPrivateKey(BigInt modulus, BigInt exponent, this.p, this.q)
-      : super(modulus, exponent);
+  ///
+  /// The optional public exponent parameter has been deprecated. It does not
+  /// have to be provided, because it can be calculated from the other values.
+  /// The optional parameter is retained for backward compatibility, but it
+  /// does not need to be provided.
 
-  /// Get private exponent [d] = e^-1
-  BigInt get d => exponent;
+  RSAPrivateKey(
+      BigInt modulus,
+      BigInt privateExponent,
+      this.p,
+      this.q,
+      [@Deprecated('Public exponent is calculated from the other values')
+          BigInt? publicExponent])
+      : super(modulus, privateExponent) {
+    // Check RSA relationship between p, q and modulus hold true.
 
-  bool operator ==(other) {
-    if (other == null) return false;
-    if (other is! RSAPrivateKey) return false;
-    return (other.n == this.n) && (other.d == this.d);
+    if (p! * q! != modulus) {
+      throw ArgumentError.value('modulus inconsistent with RSA p and q');
+    }
+
+    // Calculate the correct RSA public exponent
+
+    _pubExp =
+        privateExponent.modInverse(((p! - BigInt.one) * (q! - BigInt.one)));
+
+    // If explicitly provided, the public exponent value must be correct.
+    if (publicExponent != null && publicExponent != _pubExp) {
+      throw ArgumentError(
+          'public exponent inconsistent with RSA private exponent, p and q');
+    }
   }
 
-  int get hashCode => modulus.hashCode + exponent.hashCode;
+  /// Get private exponent [d] = e^-1
+  @Deprecated('Use privateExponent.')
+  BigInt? get d => exponent;
+
+  /// Get the private exponent (d)
+  BigInt? get privateExponent => exponent;
+
+  /// Get the public exponent (e)
+  BigInt? get publicExponent => _pubExp;
+
+  /// Get the public exponent (e)
+  @Deprecated('Use publicExponent.')
+  BigInt? get pubExponent => publicExponent;
+
+  @override
+  bool operator ==(other) {
+    if (other is RSAPrivateKey) {
+      return other.privateExponent == privateExponent &&
+          other.modulus == modulus;
+    }
+    return false;
+  }
+
+  @override
+  int get hashCode => modulus.hashCode + privateExponent.hashCode;
 }
 
 /// Public keys in RSA
@@ -47,15 +116,23 @@ class RSAPublicKey extends RSAAsymmetricKey implements PublicKey {
   RSAPublicKey(BigInt modulus, BigInt exponent) : super(modulus, exponent);
 
   /// Get public exponent [e]
-  BigInt get e => exponent;
+  @Deprecated('Use get publicExponent')
+  BigInt? get e => exponent;
 
+  /// Get the public exponent.
+  BigInt? get publicExponent => exponent;
+
+  @override
   bool operator ==(other) {
-    if (other == null) return false;
-    if (other is! RSAPublicKey) return false;
-    return (other.n == this.n) && (other.e == this.e);
+    if (other is RSAPublicKey) {
+      return (other.modulus == modulus) &&
+          (other.publicExponent == publicExponent);
+    }
+    return false;
   }
 
-  int get hashCode => modulus.hashCode + exponent.hashCode;
+  @override
+  int get hashCode => modulus.hashCode + publicExponent.hashCode;
 }
 
 /// A [Signature] created with RSA.
@@ -64,21 +141,22 @@ class RSASignature implements Signature {
 
   RSASignature(this.bytes);
 
+  @override
   String toString() => bytes.toString();
-
+  @override
   bool operator ==(other) {
-    if (other == null) return false;
     if (other is! RSASignature) return false;
-    if (other.bytes.length != this.bytes.length) return false;
+    if (other.bytes.length != bytes.length) return false;
 
-    for (var i = 0; i < this.bytes.length; i++) {
-      if (this.bytes[i] != other.bytes[i]) {
+    for (var i = 0; i < bytes.length; i++) {
+      if (bytes[i] != other.bytes[i]) {
         return false;
       }
     }
     return true;
   }
 
+  @override
   int get hashCode => bytes.hashCode;
 }
 

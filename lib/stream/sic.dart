@@ -2,34 +2,34 @@
 
 library impl.stream_cipher.sic;
 
-import "dart:typed_data";
+import 'dart:typed_data';
 
-import "package:pointycastle/api.dart";
-import "package:pointycastle/src/impl/base_stream_cipher.dart";
-import "package:pointycastle/src/ufixnum.dart";
-import "package:pointycastle/src/registry/registry.dart";
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/src/impl/base_stream_cipher.dart';
+import 'package:pointycastle/src/ufixnum.dart';
+import 'package:pointycastle/src/registry/registry.dart';
 
 /// Implementation of SIC mode of operation as a [StreamCipher]. This implementation uses the IV as the initial nonce value and
-/// keeps incrementing it by 1 for every new block. The counter may overflow and rotate, and that would cause a two-time-pad
+/// keeps incrementing it by 1 for every block. The counter may overflow and rotate, and that would cause a two-time-pad
 /// error, but this is so unlikely to happen for usual block sizes that we don't check for that event. It is the responsibility
 /// of the caller to make sure the counter does not overflow.
 class SICStreamCipher extends BaseStreamCipher {
   /// Intended for internal use.
   // ignore: non_constant_identifier_names
-  static final FactoryConfig FACTORY_CONFIG = DynamicFactoryConfig.suffix(
+  static final FactoryConfig factoryConfig = DynamicFactoryConfig.suffix(
       StreamCipher,
       '/SIC',
       (_, final Match match) => () {
             var digestName = match.group(1);
-            return SICStreamCipher(BlockCipher(digestName));
+            return SICStreamCipher(BlockCipher(digestName!));
           });
 
   final BlockCipher underlyingCipher;
 
-  Uint8List _iv;
-  Uint8List _counter;
-  Uint8List _counterOut;
-  int _consumed;
+  late Uint8List _iv;
+  late Uint8List _counter;
+  late Uint8List _counterOut;
+  late int _consumed;
 
   SICStreamCipher(this.underlyingCipher) {
     _iv = Uint8List(underlyingCipher.blockSize);
@@ -40,6 +40,7 @@ class SICStreamCipher extends BaseStreamCipher {
   @override
   String get algorithmName => '${underlyingCipher.algorithmName}/SIC';
 
+  @override
   void reset() {
     underlyingCipher.reset();
     _counter.setAll(0, _iv);
@@ -47,19 +48,22 @@ class SICStreamCipher extends BaseStreamCipher {
     _consumed = _counterOut.length;
   }
 
+  @override
   void init(bool forEncryption, covariant ParametersWithIV params) {
     _iv.setAll(0, params.iv);
     reset();
     underlyingCipher.init(true, params.parameters);
   }
 
+  @override
   void processBytes(
-      Uint8List inp, int inpOff, int len, Uint8List out, int outOff) {
+      Uint8List? inp, int inpOff, int len, Uint8List? out, int outOff) {
     for (var i = 0; i < len; i++) {
-      out[outOff + i] = returnByte(inp[inpOff + i]);
+      out![outOff + i] = returnByte(inp![inpOff + i]);
     }
   }
 
+  @override
   int returnByte(int inp) {
     _feedCounterIfNeeded();
     return clip8(inp) ^ _counterOut[_consumed++];
@@ -73,11 +77,9 @@ class SICStreamCipher extends BaseStreamCipher {
   }
 
   // ignore: slash_for_doc_comments
-  /**
-   * Fills [_counterOut] with a new value got from encrypting [_counter] with
-   * the _underlyingCipher, resets [_consumed] to 0 and increments the
-   * [_counter].
-   */
+  /// Fills [_counterOut] with a value got from encrypting [_counter] with
+  /// the _underlyingCipher, resets [_consumed] to 0 and increments the
+  /// [_counter].
   void _feedCounter() {
     underlyingCipher.processBlock(_counter, 0, _counterOut, 0);
     _incrementCounter();
